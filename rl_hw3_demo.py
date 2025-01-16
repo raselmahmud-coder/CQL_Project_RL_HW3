@@ -1,4 +1,4 @@
-# hw2_demo.py file code
+# rl_hw3_demo.py file code
 import os
 import random
 from collections import deque
@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import matplotlib.pyplot as plt
 
 # =========================
 # 超参数设置
@@ -27,6 +28,9 @@ UPDATE_AFTER = 1000  # 准备好一定量数据再开始更新
 UPDATE_EVERY = 50  # 每隔多少步更新一次
 SAVE_DATASET_EVERY = 50
 SEED = 42
+# CQL specific parameters
+CQL_ALPHA = 1.0  # Coefficient for the conservative Q-learning term
+MIN_Q_WEIGHT = 10.0  # Weight for the minimum Q value term
 
 # 设置随机种子，便于结果复现
 random.seed(SEED)
@@ -37,7 +41,7 @@ torch.manual_seed(SEED)
 # =========================
 # 创建环境
 # =========================
-env = gym.make(ENV_NAME)  # 移除 seed 参数
+env = gym.make(ENV_NAME, render_mode='rgb_array')  # 移除 seed 参数
 env.reset(seed=SEED)  # 在 reset 时设置随机种子
 env.action_space.seed(SEED)
 
@@ -250,20 +254,23 @@ def train_step():
     # 4) 软更新 target 网络
     # --------------------------
     soft_update(q1, q1_target, TAU)
-    soft_update(q2, q2_target, TAU)
 
 
-def evaluate_policy(n_episodes=5):
+def evaluate_policy(env, policy, n_episodes=5, record=False):
     """
     测试当前策略：在测试时使用确定性策略（选最大概率动作）
     返回平均回合总奖励
     """
     eval_rewards = []
-    for _ in range(n_episodes):
+    for i in range(n_episodes):
         step = 0
         state, _ = env.reset()
         done = False
         episode_reward = 0
+
+        if record:
+            env = gym.wrappers.RecordVideo(env, f"videos/episode_{i}")
+
         while not done and step < MAX_STEPS:
             state_tensor = torch.FloatTensor(state).unsqueeze(0).to(device)
             action = policy.get_action(state_tensor, deterministic=True)
@@ -271,7 +278,12 @@ def evaluate_policy(n_episodes=5):
             step += 1
             episode_reward += reward
             state = next_state
+
         eval_rewards.append(episode_reward)
+
+        if record:
+            env.close()
+
     return np.mean(eval_rewards)
 
 
@@ -286,6 +298,10 @@ def save_dataset(buffer, episode):
     print(f"Dataset saved at: {filename}")
 
 
+# Initialize lists to store rewards and lengths
+episode_rewards = []
+episode_lengths = []
+
 # =========================
 # 训练循环
 # =========================
@@ -293,9 +309,11 @@ global_step = 0
 for episode in range(MAX_EPISODES):
     state, _ = env.reset()
     episode_reward = 0
+    episode_length = 0
 
     for t in range(MAX_STEPS):
         global_step += 1
+        episode_length += 1
 
         # 在前 START_STEPS 步，随机选择动作
         if global_step < START_STEPS:
@@ -317,19 +335,42 @@ for episode in range(MAX_EPISODES):
 
         if done:
             break
-            # 定期保存经验池数据集
+
+    # Store rewards and lengths
+    episode_rewards.append(episode_reward)
+    episode_lengths.append(episode_length)
 
     if (episode + 1) % SAVE_DATASET_EVERY == 0:
         save_dataset(replay_buffer, episode + 1)
 
     # 打印训练进度
     if (episode + 1) % 10 == 0:
-        eval_reward = evaluate_policy(n_episodes=3)
+        eval_reward = evaluate_policy(env, policy, n_episodes=3)
         print(f"Episode: {episode+1}, Step: {global_step}, TrainEpisodeReward: {episode_reward:.2f}, EvalReward: {eval_reward:.2f}")
 
+    # Record episodes periodically
+    if (episode + 1) % 50 == 0:
+        evaluate_policy(env, policy, n_episodes=1, record=True)
+
+# Plot training rewards and lengths
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+plt.plot(episode_rewards)
+plt.xlabel('Episode')
+plt.ylabel('Reward')
+plt.title('Training Rewards')
+
+plt.subplot(1, 2, 2)
+plt.plot(episode_lengths)
+plt.xlabel('Episode')
+plt.ylabel('Length')
+plt.title('Training Lengths')
+
+plt.tight_layout()
+plt.show()
 
 # =========================
 # 测试结果
 # =========================
-test_reward = evaluate_policy(n_episodes=10)
+test_reward = evaluate_policy(env, policy, n_episodes=10)
 print(f"Final evaluation reward (10 episodes): {test_reward:.2f}")
