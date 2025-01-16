@@ -27,8 +27,8 @@ MAX_EPISODES = 400      # Number of training episodes
 MAX_STEPS = 500         # Max steps per episode
 SEED = 42               # Random seed
 # CQL specific parameters
-CQL_ALPHA = 1.0         # Coefficient for the conservative Q-learning term
-MIN_Q_WEIGHT = 10.0     # Weight for the minimum Q value term
+CQL_ALPHA = 0.5         # Coefficient for the conservative Q-learning term
+MIN_Q_WEIGHT = 5.0     # Weight for the minimum Q value term
 
 # Dataset paths
 DATASET_PATHS = {
@@ -352,7 +352,7 @@ def main(dataset_choice):
     eval_avg_lengths = []
 
     # Directory for saving videos
-    video_dir = Path("videos")
+    video_dir = Path("CQL_ALPHA=0.5_videos")
     dataset_choice_str = str(dataset_choice)
     video_save_path = video_dir/f"{dataset_choice_str}_dataset_episode_record"
     os.makedirs(video_save_path, exist_ok=True)
@@ -440,14 +440,13 @@ def main(dataset_choice):
 
     plt.tight_layout()
     dataset_choice_str = str(dataset_choice)
-    save_dir = Path("visual_results")
+    save_dir = Path("CQL_ALPHA=0.5_visual_results")
     save_dir.mkdir(parents=True, exist_ok=True)
 
     # Create the file path dynamically
     fig_save_path = save_dir / f"{dataset_choice_str}_training_metrics.png"
     plt.savefig(fig_save_path)
 
-    plt.show()
 
     # Final Evaluation
     print("Final Evaluation:")
