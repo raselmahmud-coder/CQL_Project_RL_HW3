@@ -352,8 +352,10 @@ def main(dataset_choice):
     eval_avg_lengths = []
 
     # Directory for saving videos
-    video_dir = "videos"
-    os.makedirs(video_dir, exist_ok=True)
+    video_dir = Path("videos")
+    dataset_choice_str = str(dataset_choice)
+    video_save_path = video_dir/f"{dataset_choice_str}_dataset_episode_record"
+    os.makedirs(video_save_path, exist_ok=True)
 
     for episode in range(1, MAX_EPISODES + 1):
         # Perform a training step
@@ -384,7 +386,7 @@ def main(dataset_choice):
             print(f"Recording Episode {episode}...")
             avg_reward, avg_length = evaluate_policy(
                 eval_env, policy, device, n_episodes=1, 
-                record=True, video_folder=video_dir, 
+                record=True, video_folder=video_save_path, 
                 episode_prefix=f"episode_{episode}"
             )
 
