@@ -1,4 +1,4 @@
-# cql_train.py
+# CQL_Training.py
 
 import os
 from pathlib import Path
